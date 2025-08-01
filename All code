@@ -1,0 +1,67 @@
+import random
+import time
+
+sanity = 100
+inventory = []
+fear_levels = [
+    "A whisper in the dark...",
+    "Shadows crawl under your skin.",
+    "You see your past regrets moving.",
+    "A scream echoes—but it’s your voice.",
+    "Your hands are not yours anymore.",
+    "Reality tears like paper."
+]
+
+def print_slow(text):
+    for char in text:
+        print(char, end='', flush=True)
+        time.sleep(0.02)
+    print()
+
+def hallucination():
+    print_slow(random.choice(fear_levels))
+
+def teleport():
+    room = random.choice([
+        "A dark hallway with flickering lights.",
+        "A child's bedroom filled with silence.",
+        "A mirror room reflecting your twisted face.",
+        "A hospital corridor soaked in blood.",
+        "A graveyard where your name is on every stone."
+    ])
+    print_slow(f"\nYou teleport into: {room}")
+    hallucination()
+
+def sanity_drain(amount):
+    global sanity
+    sanity -= amount
+    print_slow(f"Your sanity drops to {sanity}%.")
+    if sanity <= 0:
+        print_slow("Your mind collapses. The Fearin wins.")
+        exit()
+
+def choice_event():
+    print_slow("\nTwo paths emerge in the shadows:")
+    print("1. The door with claw marks.")
+    print("2. The door whispering your name.")
+    choice = input("Which do you enter? (1/2): ")
+    if choice == "1":
+        print_slow("The claws were inside you all along.")
+        sanity_drain(15)
+    elif choice == "2":
+        print_slow("You remember something you buried long ago...")
+        sanity_drain(25)
+    else:
+        print_slow("Indecision is fear. The room devours you.")
+        sanity_drain(30)
+
+def game_loop():
+    print_slow("You awaken inside the Abysswalk Shell.")
+    print_slow("Fear guides your steps.")
+    while sanity > 0:
+        input("\nPress Enter to walk forward...")
+        teleport()
+        choice_event()
+
+print_slow("=== Welcome to Fearin: Within the Shell ===")
+game_loop()
