@@ -1,119 +1,199 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>Fearin: Within the Shell</title>
   <style>
-    * {
-      box-sizing: border-box;
-    }
-    body {
-      margin: 0;
-      background-color: #000;
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background-color: #000; overflow: hidden; }
+    canvas { display: block; background-color: #111; }
+    #hud {
+      position: absolute;
+      top: 10px;
+      left: 10px;
       color: #0f0;
       font-family: 'Courier New', monospace;
-      overflow: hidden;
+      z-index: 10;
     }
-    #gameCanvas {
-      display: block;
-      margin: 0 auto;
-      background-color: #111;
-      border: 2px solid #0f0;
+    #fearMeter {
+      position: absolute;
+      top: 40px;
+      left: 10px;
+      width: 200px;
+      height: 20px;
+      background: #333;
+      border: 1px solid #0f0;
+    }
+    #fearInner {
+      height: 100%;
+      background: #f00;
+      width: 0;
     }
   </style>
 </head>
 <body>
-  <canvas id="gameCanvas" width="640" height="480"></canvas>
+  <div id="hud">
+    <div>Sanity: <span id="sanityText">100</span>%</div>
+    <div id="fearMeter"><div id="fearInner"></div></div>
+  </div>
+  <canvas id="gameCanvas"></canvas>
 
   <script>
+    // Setup canvas
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-
-    const player = {
-      x: 50,
-      y: 50,
-      width: 20,
-      height: 20,
-      color: '#0f0',
-      speed: 2
-    };
-
-    const keys = {
-      w: false,
-      a: false,
-      s: false,
-      d: false,
-      ArrowUp: false,
-      ArrowLeft: false,
-      ArrowDown: false,
-      ArrowRight: false
-    };
-
-    const walls = [
-      {x: 200, y: 100, width: 100, height: 20},
-      {x: 100, y: 200, width: 20, height: 100},
-      {x: 300, y: 300, width: 150, height: 20}
-    ];
-
-    function drawPlayer() {
-      ctx.fillStyle = player.color;
-      ctx.fillRect(player.x, player.y, player.width, player.height);
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
     }
+    window.addEventListener('resize', resize);
+    resize();
 
-    function drawWalls() {
-      ctx.fillStyle = '#070';
-      for (let wall of walls) {
-        ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
+    // Game state
+    let keys = {};
+    let sanity = 100;
+    let fear = 0;
+    const player = { x: 100, y: 100, w: 32, h: 32, speed: 3 };
+    const walls = [];
+    const shards = [];
+    const enemies = [];
+
+    // HUD Elements
+    const sanityText = document.getElementById('sanityText');
+    const fearInner = document.getElementById('fearInner');
+
+    // Initialize map walls
+    function createWalls() {
+      for (let i = 0; i < 10; i++) {
+        walls.push({ x: i * 64, y: 300, w: 64, h: 32 });
+        walls.push({ x: 400, y: 64 + i * 48, w: 32, h: 48 });
       }
     }
+    createWalls();
 
-    function movePlayer() {
+    // Create shards
+    function createShards(count) {
+      for (let i = 0; i < count; i++) {
+        shards.push({
+          x: Math.random() * (canvas.width - 16) + 8,
+          y: Math.random() * (canvas.height - 16) + 8,
+          r: 8,
+          collected: false
+        });
+      }
+    }
+    createShards(15);
+
+    // Create enemies
+    function createEnemies(count) {
+      for (let i = 0; i < count; i++) {
+        enemies.push({
+          x: Math.random() * (canvas.width - 32) + 16,
+          y: Math.random() * (canvas.height - 32) + 16,
+          w: 32,
+          h: 32,
+          speed: 1.5
+        });
+      }
+    }
+    createEnemies(3);
+
+    // Input
+    window.addEventListener('keydown', e => keys[e.key] = true);
+    window.addEventListener('keyup', e => keys[e.key] = false);
+
+    // Collision helper
+    function collide(a, b) {
+      return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+    }
+
+    // Game loop
+    function update() {
+      // Player movement
       let dx = 0, dy = 0;
-      if (keys.w || keys.ArrowUp) dy -= player.speed;
-      if (keys.s || keys.ArrowDown) dy += player.speed;
-      if (keys.a || keys.ArrowLeft) dx -= player.speed;
-      if (keys.d || keys.ArrowRight) dx += player.speed;
+      if (keys['w'] || keys['ArrowUp']) dy -= player.speed;
+      if (keys['s'] || keys['ArrowDown']) dy += player.speed;
+      if (keys['a'] || keys['ArrowLeft']) dx -= player.speed;
+      if (keys['d'] || keys['ArrowRight']) dx += player.speed;
+      let next = { ...player, x: player.x + dx, y: player.y + dy };
+      if (!walls.some(w => collide(next, w))) {
+        player.x += dx;
+        player.y += dy;
+      }
 
-      const nextX = player.x + dx;
-      const nextY = player.y + dy;
-
-      // Simple collision detection
-      const future = { x: nextX, y: nextY, width: player.width, height: player.height };
-      for (let wall of walls) {
-        if (isColliding(future, wall)) {
-          return;
+      // Collect shards
+      for (let shard of shards) {
+        if (!shard.collected && Math.hypot(player.x - shard.x, player.y - shard.y) < shard.r + player.w/2) {
+          shard.collected = true;
+          fear = Math.min(100, fear + 10);
         }
       }
 
-      player.x = nextX;
-      player.y = nextY;
+      // Enemy AI: chase player
+      for (let e of enemies) {
+        let angle = Math.atan2(player.y - e.y, player.x - e.x);
+        e.x += Math.cos(angle) * e.speed;
+        e.y += Math.sin(angle) * e.speed;
+        // Collision with player
+        if (collide(e, player)) {
+          sanity = Math.max(0, sanity - 0.2);
+        }
+      }
+
+      // Update HUD
+      sanityText.textContent = Math.floor(sanity);
+      fearInner.style.width = fear + '%';
+
+      // Fear effect: overlay
+      if (fear > 0) {
+        ctx.fillStyle = `rgba(0,0,0,${fear/200})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+
+      // Game Over check
+      if (sanity <= 0) {
+        ctx.fillStyle = '#f00';
+        ctx.font = '48px monospace';
+        ctx.fillText('YOUR MIND SHATTERS...', canvas.width/4, canvas.height/2);
+        return; // stop loop
+      }
+
+      draw();
+      requestAnimationFrame(update);
     }
 
-    function isColliding(a, b) {
-      return (
-        a.x < b.x + b.width &&
-        a.x + a.width > b.x &&
-        a.y < b.y + b.height &&
-        a.y + a.height > b.y
-      );
-    }
-
-    function gameLoop() {
+    function draw() {
+      // Clear
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      movePlayer();
-      drawWalls();
-      drawPlayer();
-      requestAnimationFrame(gameLoop);
+      // Draw background grid
+      ctx.fillStyle = '#222';
+      for (let x = 0; x < canvas.width; x += 32) {
+        for (let y = 0; y < canvas.height; y += 32) {
+          ctx.fillRect(x, y, 30, 30);
+        }
+      }
+      // Draw walls
+      ctx.fillStyle = '#444';
+      walls.forEach(w => ctx.fillRect(w.x, w.y, w.w, w.h));
+      // Draw shards
+      shards.forEach(s => {
+        if (!s.collected) {
+          ctx.fillStyle = '#f00';
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+          ctx.fill();
+        }
+      });
+      // Draw enemies
+      ctx.fillStyle = '#000';
+      enemies.forEach(e => ctx.fillRect(e.x, e.y, e.w, e.h));
+      // Draw player
+      ctx.fillStyle = '#0f0';
+      ctx.fillRect(player.x, player.y, player.w, player.h);
     }
 
-    document.addEventListener('keydown', (e) => {
-      if (e.key in keys) keys[e.key] = true;
-    });
-
-    document.addEventListener('keyup', (e) => {
-      if (e.key in keys) keys[e.key] = false;
-    });
-
-    gameLoop();
+    // Start game
+    update();
   </script>
 </body>
 </html>
