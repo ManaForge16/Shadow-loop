@@ -1,67 +1,138 @@
-import random
-import time
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Fearin: Within the Shell</title>
+  <style>
+    body {
+      background-color: #000;
+      color: #0f0;
+      font-family: 'Courier New', monospace;
+      margin: 0;
+      padding: 20px;
+      overflow: hidden;
+    }
+    #game {
+      max-width: 800px;
+      margin: auto;
+      white-space: pre-line;
+    }
+    #sanityBar {
+      width: 100%;
+      height: 20px;
+      background-color: #333;
+      border: 1px solid #0f0;
+      margin-bottom: 20px;
+    }
+    #sanityInner {
+      height: 100%;
+      background-color: #0f0;
+      width: 100%;
+      transition: width 0.3s;
+    }
+    .btn {
+      background-color: #0f0;
+      color: #000;
+      font-weight: bold;
+      padding: 10px;
+      margin: 10px 5px 0 0;
+      border: none;
+      cursor: pointer;
+      font-family: monospace;
+    }
+    .btn:hover {
+      background-color: #0a0;
+    }
+  </style>
+</head>
+<body>
+  <div id="game">
+    <h1>Fearin: Within the Shell</h1>
+    <div id="sanityBar"><div id="sanityInner"></div></div>
+    <div id="output">You awaken within a shell made of grade six Fearin. Fear is your only guide.
+    </div>
+    <div id="choices"></div>
+  </div>
 
-sanity = 100
-inventory = []
-fear_levels = [
-    "A whisper in the dark...",
-    "Shadows crawl under your skin.",
-    "You see your past regrets moving.",
-    "A scream echoes—but it’s your voice.",
-    "Your hands are not yours anymore.",
-    "Reality tears like paper."
-]
+  <script>
+    const output = document.getElementById("output");
+    const choices = document.getElementById("choices");
+    const sanityBar = document.getElementById("sanityInner");
 
-def print_slow(text):
-    for char in text:
-        print(char, end='', flush=True)
-        time.sleep(0.02)
-    print()
+    let sanity = 100;
+    let scene = 0;
 
-def hallucination():
-    print_slow(random.choice(fear_levels))
+    const scenes = [
+      {
+        text: "A corridor stretches out before you, shadows shifting unnaturally.",
+        options: [
+          { text: "Walk through", sanityLoss: 5 },
+          { text: "Inspect the shadows", sanityLoss: 10 }
+        ]
+      },
+      {
+        text: "A mirror stands in the darkness. Your reflection does not move.",
+        options: [
+          { text: "Touch the mirror", sanityLoss: 15 },
+          { text: "Look away", sanityLoss: 5 }
+        ]
+      },
+      {
+        text: "You hear whispering coming from two doors.",
+        options: [
+          { text: "Enter the left door", sanityLoss: 10 },
+          { text: "Enter the right door", sanityLoss: 20 }
+        ]
+      },
+      {
+        text: "The shell pulses. You feel transported through shadows.",
+        options: [
+          { text: "Hold your breath", sanityLoss: 5 },
+          { text: "Scream", sanityLoss: 30 }
+        ]
+      }
+    ];
 
-def teleport():
-    room = random.choice([
-        "A dark hallway with flickering lights.",
-        "A child's bedroom filled with silence.",
-        "A mirror room reflecting your twisted face.",
-        "A hospital corridor soaked in blood.",
-        "A graveyard where your name is on every stone."
-    ])
-    print_slow(f"\nYou teleport into: {room}")
-    hallucination()
+    function updateSanity(amount) {
+      sanity -= amount;
+      if (sanity < 0) sanity = 0;
+      sanityBar.style.width = sanity + "%";
+    }
 
-def sanity_drain(amount):
-    global sanity
-    sanity -= amount
-    print_slow(f"Your sanity drops to {sanity}%.")
-    if sanity <= 0:
-        print_slow("Your mind collapses. The Fearin wins.")
-        exit()
+    function gameOver() {
+      output.textContent = "Your mind shatters under the weight of Fearin. Game over.";
+      choices.innerHTML = '';
+    }
 
-def choice_event():
-    print_slow("\nTwo paths emerge in the shadows:")
-    print("1. The door with claw marks.")
-    print("2. The door whispering your name.")
-    choice = input("Which do you enter? (1/2): ")
-    if choice == "1":
-        print_slow("The claws were inside you all along.")
-        sanity_drain(15)
-    elif choice == "2":
-        print_slow("You remember something you buried long ago...")
-        sanity_drain(25)
-    else:
-        print_slow("Indecision is fear. The room devours you.")
-        sanity_drain(30)
+    function renderScene() {
+      if (sanity <= 0) {
+        gameOver();
+        return;
+      }
+      if (scene >= scenes.length) {
+        output.textContent = "You emerge from the shell. You survived Fearin. Barely.";
+        choices.innerHTML = '';
+        return;
+      }
 
-def game_loop():
-    print_slow("You awaken inside the Abysswalk Shell.")
-    print_slow("Fear guides your steps.")
-    while sanity > 0:
-        input("\nPress Enter to walk forward...")
-        teleport()
-        choice_event()
+      const current = scenes[scene];
+      output.textContent = current.text;
+      choices.innerHTML = '';
 
-print_slow("=== Welcome to Fearin: Within the Shell ===")
-game_loop()
+      current.options.forEach((opt, index) => {
+        const btn = document.createElement("button");
+        btn.textContent = opt.text;
+        btn.className = "btn";
+        btn.onclick = () => {
+          updateSanity(opt.sanityLoss);
+          scene++;
+          renderScene();
+        };
+        choices.appendChild(btn);
+      });
+    }
+
+    renderScene();
+  </script>
+</body>
+</html>
